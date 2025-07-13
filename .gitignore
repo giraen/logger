@@ -8,6 +8,4 @@
 # Exclude .NET assemblies from source
 *.dll
 
-*.csv
-
 # End of https://www.toptal.com/developers/gitignore/api/powershell
