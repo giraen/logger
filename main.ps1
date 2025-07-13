@@ -38,23 +38,22 @@ function Show-InputBox {
 $currDate = Get-Date -Format 'yyMMdd'
 $fileName = "$currDate-Logs.csv"
 $logFileNamePath = ".\Logs\$fileName"
+$flashDriveHash = @{}
+$loggedSerials = @{}
 
-$isScenario1 = $false
-$isScenario2 = $false
-$name = "ken harvey p. Girasol"
-$flashDriveName = "E:\"
+$name = "Unknown"
 $actionLocation =  "D:\Programming\02_Prototype\logger\PastingDirectory"
 
 #S1
 #S2
 
-$logFileExists = Search-File -FilePath $logFileNamePath
-If ($isScenario1 -and $logFileExists) {
-    $actionPerformed = "'$flashDriveName' mounted"
+# $logFileExists = Search-File -FilePath $logFileNamePath
+# If ($isScenario1) {
+#     $actionPerformed = "'$flashDriveName' mounted"
+#     Show-InputBox
+#     Write-Logs -FileExistence $logFileExists -FilePath "$logFileNamePath" -Name "$name" -Action "$actionPerformed"
+# }
 
-    Write-Logs -FileExistence $logFileExists -FilePath "$logFileNamePath" -Name "$name" -Action "$actionPerformed"
-}
-
-If ($isScenario2 -and $logFileExists) {
-    Write-Logs -FileExistence $logFileExists -FilePath "$logFileNamePath" -Name "$name" -Action "$actionPerformed" -actionLocation "$actionLocation"
-}
+# If ($isScenario2) {
+#     Write-Logs -FileExistence $logFileExists -FilePath "$logFileNamePath" -Name "$name" -Action "$actionPerformed" -actionLocation "$actionLocation"
+# }
