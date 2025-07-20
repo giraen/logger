@@ -5,9 +5,8 @@ $flashDriveHash = @{}
 $loggedSerials = @{}
 
 function Get-FlashDrive {
-    $flashDrives = @(Get-WmiObject Win32_DiskDrive `
-        | Where-Object { $_.MediaType -like "*Removable*" } `
-        | Select-Object Model, SerialNumber, Size)
+    $flashDrives = @(Get-CimInstance Win32_DiskDrive `
+        | Where-Object { $_.MediaType -like "*Removable*" })
 
     foreach ($flashDrive in $flashDrives) {
         $serial = $flashDrive.SerialNumber
@@ -17,6 +16,20 @@ function Get-FlashDrive {
         # Skip if already logged
         if ($global:loggedSerials.ContainsKey($serial)) {
             continue
+        }
+
+        # --- Get associated LogicalDisk (for VolumeName) ---
+        $volumeName = ""
+        $partitions = Get-CimAssociatedInstance -InputObject $flashDrive -ResultClassName Win32_DiskPartition
+        foreach ($partition in $partitions) {
+            $logicalDisks = Get-CimAssociatedInstance -InputObject $partition -ResultClassName Win32_LogicalDisk
+            foreach ($logical in $logicalDisks) {
+                if ($logical.VolumeName) {
+                    $volumeName = $logical.VolumeName
+                    break
+                }
+            }
+            if ($volumeName) { break }
         }
 
         # Add them to the hashtable if not yet added
@@ -36,7 +49,8 @@ function Get-FlashDrive {
                 Event     = "Inserted"
                 Serial    = $serial
                 Model     = $model
-                Size      = $size
+                Size      = "{0:N2} GB" -f ($size / 1GB)
+                FlashDriveName = $volumeName
             } | Export-Csv -Path ".\usb_log.csv" -NoTypeInformation -Append
         }
     }
@@ -46,7 +60,7 @@ function Remove-FlashDrive {
     $serialNums = [System.Collections.Generic.List[string]]::new()
     $serialNumsToRemove = @()
 
-    $flashDrives = @(Get-WmiObject Win32_DiskDrive `
+    $flashDrives = @(Get-CimInstance Win32_DiskDrive `
         | Where-Object { $_.MediaType -like "*Removable*" } `
         | Select-Object Model, SerialNumber, Size)
 

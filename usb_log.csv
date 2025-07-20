@@ -1,5 +1,3 @@
-"Timestamp","Event","Serial","Model","Size"
-"22:29","Inserted","00003412050325150411"," USB  SanDisk 3.2Gen1 SCSI Disk Device","30778997760"
-"22:30","Removed","00003412050325150411"," USB  SanDisk 3.2Gen1 SCSI Disk Device","30778997760"
-"22:30","Inserted","00003412050325150411"," USB  SanDisk 3.2Gen1 SCSI Disk Device","30778997760"
-"22:30","Removed","00003412050325150411"," USB  SanDisk 3.2Gen1 SCSI Disk Device","30778997760"
+"Timestamp","Event","Serial","Model","Size","FlashDriveName"
+"23:16","Inserted","00003412050325150411"," USB  SanDisk 3.2Gen1 SCSI Disk Device","28.67 GB","KEN"
+"23:24","Inserted","00003412050325150411"," USB  SanDisk 3.2Gen1 SCSI Disk Device","28.67 GB","KEN"

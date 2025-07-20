@@ -1,3 +1,22 @@
+Set-StrictMode -Version 2
+
+$global:currDate = Get-Date -Format 'yyMMdd'
+$global:fileName = "$global:currDate-Logs.csv"
+$global:logFileNamePath = ".\Logs\$global:fileName"
+$global:actionLocation = ".\PastingDirectory"
+$global:header = "Timestamp", "Name", "Action", "ActionLocation"
+$global:name = "Unknown"
+
+$global:refTime = @{}
+$global:timeCalled = @{}
+
+$global:flashDriveHash = @{}
+$global:loggedSerials = @{}
+
+if (-not (Test-Path $global:logFileNamePath)) {
+    $null | Select-Object $global:header | Export-Csv -Path $global:logFileNamePath -NoTypeInformation
+}
+
 function Write-Logs {
     param(
         [string]$FilePath,
@@ -5,14 +24,16 @@ function Write-Logs {
         [string]$Model,
         [string]$Size,
         [string]$ActionLocation,
-        [string]$UsbOperation
+        [string]$UsbOperation,
+        [string]$FileOperation,
+        [string]$UsbName
     )
 
     $timeStamp = (Get-Date).ToString("HH:mm")
     if ($UsbOperation) {
-        $action = "$Model($Size) $UsbOperation"
+        $action = "$Model($Size) named $UsbName was $UsbOperation"
     } else {
-        $action = "this is meant for file operations!"
+        $action = "$FileOperation"
     }
     
     [PSCustomObject]@{
@@ -24,14 +45,38 @@ function Write-Logs {
 }
 
 function Show-InputBox {
-    Add-Type -AssemblyName Microsoft.VisualBasic
-    $global:name = [Microsoft.VisualBasic.Interaction]::InputBox("Please enter your name: ", "Name Logger")
+    param(
+        [datetime]$LastTimeCalled
+    )
+    $advTime = $($LastTimeCalled.AddSeconds(2))
+    $delayTime = $($LastTimeCalled.AddSeconds(-2))
+    $isWithinRange = $(($LastTimeCalled.Second -le $advTime.Second) -and ($LastTimeCalled.Second -gt $delayTime.Second))
+
+    $secondsFiltered = ($LastTimeCalled).ToString("MM/dd/yyyy HH:mm")
+
+    if ($isWithinRange) {
+        if (-not ($global:refTime.ContainsKey($secondsFiltered))) {
+            $global:refTime[($LastTimeCalled).ToString("MM/dd/yyyy HH:mm")] = $true
+
+            Add-Type -AssemblyName Microsoft.VisualBasic
+            $global:name = [Microsoft.VisualBasic.Interaction]::InputBox("Please enter your name: ", "Name Logger")
+        }
+    }
+    $global:timeCalled = Get-Date
+}
+
+function Show-PopUpMsgBox {
+    Add-Type -AssemblyName PresentationCore, PresentationFramework
+    $btnType = [System.Windows.MessageBoxButton]::OK
+    $msgBoxTitle = "Logger stopped"
+    $msgBoxBody = "The logger has been stopped!"
+    $msgIcon = [System.Windows.MessageBoxImage]::Information
+    [System.Windows.MessageBox]::Show($msgBoxBody, $msgBoxTitle, $btnType, $msgIcon)
 }
 
 function Get-FlashDrive {
-    $flashDrives = @(Get-WmiObject Win32_DiskDrive `
-        | Where-Object { $_.MediaType -like "*Removable*" } `
-        | Select-Object Model, SerialNumber, Size)
+    $flashDrives = @(Get-CimInstance Win32_DiskDrive `
+        | Where-Object { $_.MediaType -like "*Removable*" })
 
     foreach ($flashDrive in $flashDrives) {
         $serial = $flashDrive.SerialNumber
@@ -43,12 +88,27 @@ function Get-FlashDrive {
             continue
         }
 
+        # Get the volume name
+        $volumeName = ""
+        $partitions = Get-CimAssociatedInstance -InputObject $flashDrive -ResultClassName Win32_DiskPartition
+        foreach ($partition in $partitions) {
+            $logicalDisks = Get-CimAssociatedInstance -InputObject $partition -ResultClassName Win32_LogicalDisk
+            foreach ($logical in $logicalDisks) {
+                if ($logical.VolumeName) {
+                    $volumeName = $logical.VolumeName
+                    break
+                }
+            }
+            if ($volumeName) { break }
+        }
+
         # Add them to the hashtable if not yet added
         if (-not $global:flashDriveHash.ContainsKey($serial)) {
             # Create a value object containing model and size
             $driveInfo = [PSCustomObject]@{
                 Model = $model
                 Size  = $size
+                VolumeName = $volumeName
             }
 
             # Mark the newly added serial to be logged (true)
@@ -60,7 +120,8 @@ function Get-FlashDrive {
                        -Model $model `
                        -Size $size `
                        -UsbOperation "Inserted" `
-                       -ActionLocation ""
+                       -ActionLocation "" `
+                       -UsbName "$volumeName"
         }
     }
 }
@@ -82,7 +143,8 @@ function Remove-FlashDrive {
                        -Model $driveInfo.Model `
                        -Size $driveInfo.Size `
                        -UsbOperation "Removed" `
-                       -ActionLocation ""
+                       -ActionLocation "" `
+                       -UsbName $driveInfo.VolumeName
         }
 
         # Clear everything
@@ -113,7 +175,8 @@ function Remove-FlashDrive {
                    -Model $driveInfo.Model `
                    -Size $driveInfo.Size `
                    -UsbOperation "Removed" `
-                   -ActionLocation ""
+                   -ActionLocation "" `
+                   -UsbName $driveInfo.VolumeName
 
         $global:flashDriveHash.Remove($serialNumToRemove)
         $global:loggedSerials.Remove($serialNumToRemove)
